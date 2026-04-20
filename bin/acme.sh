@@ -176,16 +176,32 @@ lsws_restart(){
 doc_root_verify(){
     if [ "${DOC_ROOT}" = '' ]; then
         DOC_PATH="/var/www/vhosts/${1}/html"
+        ALT_DOC_PATH="/var/www/vhosts/www.${1}/html"
     else
-        DOC_PATH="${DOC_ROOT}"    
+        DOC_PATH="${DOC_ROOT}"
     fi
+
     docker compose exec ${CONT_NAME} su -c "[ -e ${DOC_PATH} ]"
     if [ ${?} -eq 0 ]; then
         echo -e "[O] The document root folder \033[32m${DOC_PATH}\033[0m does exist."
-    else
-        echo -e "[X] The document root folder \e[31m${DOC_PATH}\e[39m does not exist!"
-        exit 1
+        return 0
     fi
+
+    if [ "${DOC_ROOT}" = '' ]; then
+        docker compose exec ${CONT_NAME} su -c "[ -e ${ALT_DOC_PATH} ]"
+        if [ ${?} -eq 0 ]; then
+            DOC_PATH="${ALT_DOC_PATH}"
+            echo -e "[!] The default document root was not found. Using fallback \033[33m${DOC_PATH}\033[0m."
+            echo -e "[O] The document root folder \033[32m${DOC_PATH}\033[0m does exist."
+            return 0
+        fi
+    fi
+
+    echo -e "[X] The document root folder \e[31m${DOC_PATH}\e[39m does not exist!"
+    if [ "${DOC_ROOT}" = '' ]; then
+        echo -e "[X] The fallback document root \e[31m${ALT_DOC_PATH}\e[39m does not exist!"
+    fi
+    exit 1
 }
 
 install_cert(){
